@@ -134,14 +134,9 @@ fun Context.horizontal() = LinearLayout(this).apply {
     gravity = Gravity.CENTER_VERTICAL
 }
 
-/** Card branco arredondado, como uma prancha flutuando no mar, com sombra azulada. */
+/** Card branco arredondado, como uma prancha flutuando no mar. */
 fun Context.card(): LinearLayout = vertical(dp(18)).apply {
     background = rounded(Palette.WHITE, dpf(CARD_RADIUS))
-    elevation = dpf(5f)
-    if (Build.VERSION.SDK_INT >= 28) {
-        outlineSpotShadowColor = Palette.OCEAN
-        outlineAmbientShadowColor = Palette.TURQUOISE
-    }
     layoutParams = lp().margins(t = dp(7), b = dp(7))
 }
 
@@ -279,7 +274,6 @@ abstract class OceanActivity : Activity() {
             setPadding(dp(12), dp(14), dp(12), dp(4))
         }
         val row = horizontal()
-        if (!showBack) row.addView(logo(), lp(dp(46), dp(46)).margins(l = dp(4), r = dp(12)))
         if (showBack) {
             row.addView(
                 text("←", 24f, Palette.WHITE, bold = true).apply {
@@ -299,7 +293,7 @@ abstract class OceanActivity : Activity() {
         titles.addView(titleView)
         titles.addView(subtitleView)
         titles.addView(noteView)
-        row.addView(titles, lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(titles, lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).margins(l = if (showBack) 0 else dp(6)))
         actionsBox = horizontal()
         row.addView(actionsBox)
         header.addView(row)
@@ -338,23 +332,6 @@ abstract class OceanActivity : Activity() {
     protected fun setHeaderNote(note: String) {
         noteView.text = note
         noteView.visibility = if (note.isEmpty()) View.GONE else View.VISIBLE
-    }
-
-    /** Logo do app num círculo, mostrado no cabeçalho da tela inicial. */
-    private fun logo() = FrameLayout(this).apply {
-        background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(Palette.WHITE)
-        }
-        clipToOutline = true
-        elevation = dpf(3f)
-        addView(ImageView(this@OceanActivity).apply {
-            setImageResource(R.mipmap.ic_launcher_foreground)
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            // O desenho ocupa 74 dos 108dp do ícone adaptativo; amplia para preencher o círculo.
-            scaleX = 1.46f
-            scaleY = 1.46f
-        }, FrameLayout.LayoutParams(-1, -1))
     }
 
     protected fun addHeaderIcon(iconRes: Int, description: String, onClick: () -> Unit) {
