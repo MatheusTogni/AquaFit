@@ -57,7 +57,7 @@ class MainActivity : OceanActivity() {
             workouts.forEach { content.addView(workoutCard(it, drag)) }
         }
         content.addView(
-            text("v${appVersion()}", 11f, 0x885C7C99).apply { gravity = Gravity.CENTER },
+            text("v${appVersion()}", 11f, 0x885C7C99.toInt()).apply { gravity = Gravity.CENTER },
             lp().margins(t = dp(24))
         )
     }
