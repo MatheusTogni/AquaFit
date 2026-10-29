@@ -11,11 +11,12 @@ import com.aquafit.app.data.Exercise
 import com.aquafit.app.data.Repository
 import com.aquafit.app.data.Workout
 import com.aquafit.app.ui.BtnStyle
-import com.aquafit.app.ui.DragReorder
+import com.aquafit.app.ui.CardList
 import com.aquafit.app.ui.Fmt
 import com.aquafit.app.ui.INPUT_MULTILINE
 import com.aquafit.app.ui.OceanActivity
 import com.aquafit.app.ui.Palette
+import com.aquafit.app.ui.SwipeAction
 import com.aquafit.app.ui.card
 import com.aquafit.app.ui.confirm
 import com.aquafit.app.ui.dialogBuilder
@@ -26,7 +27,6 @@ import com.aquafit.app.ui.horizontal
 import com.aquafit.app.ui.input
 import com.aquafit.app.ui.lp
 import com.aquafit.app.ui.margins
-import com.aquafit.app.ui.ripple
 import com.aquafit.app.ui.rounded
 import com.aquafit.app.ui.text
 import com.aquafit.app.ui.vertical
@@ -81,15 +81,32 @@ class WorkoutEditActivity : OceanActivity() {
             return
         }
         sectionTitle("EXERCÍCIOS (${exercises.size})")
-        val drag = DragReorder(scroll) { from, to ->
+        hint("Toque ou deslize → para editar · deslize ← para excluir · segure e arraste para reordenar")
+        val list = CardList(scroll) { from, to ->
             repo.reorderExercises(exercises.toMutableList().apply { add(to, removeAt(from)) })
             render()
         }
-        exercises.forEachIndexed { index, e -> content.addView(exerciseCard(index, e, drag)) }
+        exercises.forEachIndexed { index, e ->
+            content.addView(
+                list.add(
+                    exerciseCard(index, e),
+                    onTap = { editExercise(e) },
+                    swipeLeft = SwipeAction("🗑", Palette.DANGER) { reset ->
+                        confirm("Remover exercício", "Remover \"${e.name}\" deste treino?", "Remover", onDismiss = reset) {
+                            repo.deleteExercise(e.id)
+                            render()
+                        }
+                    },
+                    swipeRight = SwipeAction("✎", Palette.TURQUOISE) { reset ->
+                        reset()
+                        editExercise(e)
+                    }
+                )
+            )
+        }
     }
 
-    private fun exerciseCard(index: Int, e: Exercise, drag: DragReorder) = card().apply {
-        val handle = drag.handle()
+    private fun exerciseCard(index: Int, e: Exercise) = card().apply {
         val top = horizontal().apply {
             addView(
                 text("${index + 1}", 15f, Palette.WHITE, bold = true).apply {
@@ -104,34 +121,14 @@ class WorkoutEditActivity : OceanActivity() {
                 addView(text("Descanso: ${Fmt.duration(e.restSeconds)}", 13f, Palette.MUTED), lp().margins(t = dp(2)))
             }
             addView(info, lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            addView(handle, lp(dp(40), dp(40)).margins(l = dp(8)))
         }
         addView(top)
-        drag.add(this, handle)
         if (e.notes.isNotBlank()) {
             addView(text("📝 ${e.notes}", 13f, Palette.MUTED), lp().margins(t = dp(8)))
         }
-        val tools = horizontal().apply {
-            gravity = Gravity.END
-            addView(tool("✎") { showExerciseDialog(workoutId, e) { render() } })
-            addView(tool("✕", Palette.DANGER) {
-                confirm("Remover exercício", "Remover \"${e.name}\" deste treino?", "Remover") {
-                    repo.deleteExercise(e.id)
-                    render()
-                }
-            })
-        }
-        addView(tools, lp().margins(t = dp(6)))
-        setOnClickListener { showExerciseDialog(workoutId, e) { render() } }
     }
 
-    private fun tool(label: String, color: Int = Palette.OCEAN, onClick: () -> Unit) =
-        text(label, 18f, color, bold = true).apply {
-            gravity = Gravity.CENTER
-            background = ripple(rounded(Palette.SKY, dpf(18f)), 0x3300B4D8)
-            setOnClickListener { onClick() }
-            layoutParams = lp(dp(40), dp(36)).margins(l = dp(6))
-        }
+    private fun editExercise(e: Exercise) = showExerciseDialog(workoutId, e) { render() }
 
     private fun promptRename() {
         val name = input("Nome do treino", workout.name)

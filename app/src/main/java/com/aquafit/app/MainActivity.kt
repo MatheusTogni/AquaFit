@@ -2,19 +2,16 @@ package com.aquafit.app
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.Gravity
 import android.view.ViewGroup
-import android.widget.Toast
 import com.aquafit.app.data.Repository
 import com.aquafit.app.data.Workout
-import com.aquafit.app.ui.BtnStyle
-import com.aquafit.app.ui.DragReorder
+import com.aquafit.app.ui.CardList
 import com.aquafit.app.ui.Fmt
 import com.aquafit.app.ui.INPUT_MULTILINE
 import com.aquafit.app.ui.OceanActivity
 import com.aquafit.app.ui.Palette
+import com.aquafit.app.ui.SwipeAction
 import com.aquafit.app.ui.badge
-import com.aquafit.app.ui.button
 import com.aquafit.app.ui.card
 import com.aquafit.app.ui.confirm
 import com.aquafit.app.ui.dialogBuilder
@@ -34,6 +31,7 @@ class MainActivity : OceanActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setupScreen("Aqua Fit 🌊", "Seus treinos de calistenia", showBack = false)
+        setHeaderNote("v${appVersion()}")
         addHeaderAction("🐚 Histórico") { startActivity(Intent(this, HistoryActivity::class.java)) }
         addFab("+") { promptNewWorkout() }
     }
@@ -50,16 +48,21 @@ class MainActivity : OceanActivity() {
             emptyState("🏝️", "Mar calmo por aqui…", "Toque no + para criar seu primeiro treino.")
         } else {
             sectionTitle("MEUS TREINOS")
-            val drag = DragReorder(scroll) { from, to ->
+            hint("Toque para abrir · segure e arraste para reordenar · deslize ← para excluir")
+            val list = CardList(scroll) { from, to ->
                 repo.reorderWorkouts(workouts.toMutableList().apply { add(to, removeAt(from)) })
                 render()
             }
-            workouts.forEach { content.addView(workoutCard(it, drag)) }
+            workouts.forEach { w ->
+                content.addView(
+                    list.add(
+                        workoutCard(w),
+                        onTap = { openEditor(w.id) },
+                        swipeLeft = SwipeAction("🗑", Palette.DANGER) { reset -> confirmDelete(w, reset) }
+                    )
+                )
+            }
         }
-        content.addView(
-            text("v${appVersion()}", 11f, 0x885C7C99.toInt()).apply { gravity = Gravity.CENTER },
-            lp().margins(t = dp(24))
-        )
     }
 
     private fun appVersion(): String =
@@ -70,14 +73,8 @@ class MainActivity : OceanActivity() {
             ""
         }
 
-    private fun workoutCard(w: Workout, drag: DragReorder) = card().apply {
-        val handle = drag.handle()
-        val titleRow = horizontal().apply {
-            addView(text(w.name, 19f, Palette.DEEP, bold = true), lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            addView(handle, lp(dp(40), dp(36)).margins(l = dp(8)))
-        }
-        addView(titleRow)
-        drag.add(this, handle)
+    private fun workoutCard(w: Workout) = card().apply {
+        addView(text(w.name, 19f, Palette.DEEP, bold = true))
         if (w.description.isNotBlank()) {
             addView(text(w.description, 14f, Palette.MUTED), lp().margins(t = dp(2)))
         }
@@ -91,36 +88,18 @@ class MainActivity : OceanActivity() {
             )
         }
         addView(badges, lp().margins(t = dp(10)))
-
-        val actions = horizontal().apply {
-            addView(
-                button("▶ Iniciar", BtnStyle.PRIMARY) { startWorkout(w) },
-                lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).margins(r = dp(6))
-            )
-            addView(
-                button("Editar", BtnStyle.OUTLINE) { openEditor(w.id) },
-                lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).margins(l = dp(6))
-            )
-        }
-        addView(actions, lp().margins(t = dp(12)))
-
-        setOnClickListener { openEditor(w.id) }
-        setOnLongClickListener {
-            confirm("Excluir treino", "Excluir \"${w.name}\" e seus exercícios? O histórico continua salvo.", "Excluir") {
-                repo.deleteWorkout(w.id)
-                render()
-            }
-            true
-        }
     }
 
-    private fun startWorkout(w: Workout) {
-        if (w.exerciseCount == 0) {
-            Toast.makeText(this, "Adicione exercícios antes de iniciar 🌊", Toast.LENGTH_SHORT).show()
-            openEditor(w.id)
-            return
+    private fun confirmDelete(w: Workout, reset: () -> Unit) {
+        confirm(
+            "Excluir treino",
+            "Excluir \"${w.name}\" e seus exercícios? O histórico continua salvo.",
+            "Excluir",
+            onDismiss = reset
+        ) {
+            repo.deleteWorkout(w.id)
+            render()
         }
-        startActivity(Intent(this, WorkoutRunActivity::class.java).putExtra(EXTRA_WORKOUT_ID, w.id))
     }
 
     private fun openEditor(id: Long) {

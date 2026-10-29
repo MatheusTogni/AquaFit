@@ -150,12 +150,13 @@ fun Context.badge(label: String, bg: Int = Palette.SKY, fg: Int = Palette.OCEAN)
 fun Context.dialogBuilder(): AlertDialog.Builder =
     AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
 
-fun Context.confirm(title: String, message: String, okLabel: String, onOk: () -> Unit) {
+fun Context.confirm(title: String, message: String, okLabel: String, onDismiss: () -> Unit = {}, onOk: () -> Unit) {
     dialogBuilder()
         .setTitle(title)
         .setMessage(message)
         .setPositiveButton(okLabel) { _, _ -> onOk() }
         .setNegativeButton("Cancelar", null)
+        .setOnDismissListener { onDismiss() }
         .show()
 }
 
@@ -201,6 +202,7 @@ abstract class OceanActivity : Activity() {
     private lateinit var frame: FrameLayout
     private lateinit var titleView: TextView
     private lateinit var subtitleView: TextView
+    private lateinit var noteView: TextView
     private lateinit var actionsBox: LinearLayout
     private lateinit var bottomBar: LinearLayout
 
@@ -238,8 +240,10 @@ abstract class OceanActivity : Activity() {
         subtitleView = text(subtitle.orEmpty(), 13f, 0xDDFFFFFF.toInt()).apply {
             visibility = if (subtitle.isNullOrEmpty()) View.GONE else View.VISIBLE
         }
+        noteView = text("", 11f, 0xAAFFFFFF.toInt()).apply { visibility = View.GONE }
         titles.addView(titleView)
         titles.addView(subtitleView)
+        titles.addView(noteView)
         row.addView(titles, lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).margins(l = if (showBack) 0 else dp(6)))
         actionsBox = horizontal()
         row.addView(actionsBox)
@@ -268,6 +272,12 @@ abstract class OceanActivity : Activity() {
         titleView.text = title
         subtitleView.text = subtitle.orEmpty()
         subtitleView.visibility = if (subtitle.isNullOrEmpty()) View.GONE else View.VISIBLE
+    }
+
+    /** Linha discreta abaixo do subtítulo (ex.: versão do app). */
+    protected fun setHeaderNote(note: String) {
+        noteView.text = note
+        noteView.visibility = if (note.isEmpty()) View.GONE else View.VISIBLE
     }
 
     protected fun addHeaderAction(label: String, onClick: () -> Unit) {
@@ -319,5 +329,10 @@ abstract class OceanActivity : Activity() {
         content.addView(text(label, 13f, Palette.OCEAN, bold = true).apply {
             letterSpacing = 0.08f
         }, lp().margins(t = dp(14), b = dp(2), l = dp(4)))
+    }
+
+    /** Dica curta abaixo do título da seção (ex.: como usar os gestos). */
+    protected fun hint(label: String) {
+        content.addView(text(label, 12f, Palette.MUTED), lp().margins(b = dp(4), l = dp(4)))
     }
 }
