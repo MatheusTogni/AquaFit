@@ -4,8 +4,11 @@ import android.content.res.ColorStateList
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Gravity
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -14,6 +17,7 @@ import com.aquafit.app.MainActivity.Companion.EXTRA_WORKOUT_ID
 import com.aquafit.app.data.Exercise
 import com.aquafit.app.data.ExerciseMode
 import com.aquafit.app.data.Repository
+import com.aquafit.app.data.RunDraft
 import com.aquafit.app.data.Session
 import com.aquafit.app.data.SessionSet
 import com.aquafit.app.data.Workout
@@ -60,25 +64,26 @@ class WorkoutRunActivity : OceanActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val w = repo.workout(intent.getLongExtra(EXTRA_WORKOUT_ID, 0L))
+        val workoutId = intent.getLongExtra(EXTRA_WORKOUT_ID, 0L)
+        val w = repo.workout(workoutId)
         val exercises = w?.let { repo.exercises(it.id) }.orEmpty()
         if (w == null || exercises.isEmpty()) {
+            if (RunDraft.load(this)?.workoutId == workoutId) RunDraft.clear(this)
             finish()
             return
         }
         workout = w
-        startedAt = savedInstanceState?.getLong(KEY_STARTED) ?: System.currentTimeMillis()
+        // Retoma o treino em andamento se o app foi fechado no meio dele.
+        val draft = RunDraft.load(this)?.takeIf { it.workoutId == w.id }
+        startedAt = draft?.startedAt ?: System.currentTimeMillis()
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         setupScreen("🏄 ${w.name}", "")
-        exercises.forEach { content.addView(exerciseCard(it)) }
+        exercises.forEach { content.addView(exerciseCard(it, draft)) }
+        saveDraft()
 
         addBottomButton("Cancelar", BtnStyle.OUTLINE) { onBackPressed() }
         addBottomButton("🏁 Finalizar", BtnStyle.PRIMARY) { finishWorkout() }
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putLong(KEY_STARTED, startedAt)
     }
 
     override fun onResume() {
@@ -96,12 +101,23 @@ class WorkoutRunActivity : OceanActivity() {
         setHeader("🏄 ${workout.name}", "⏱ ${Fmt.elapsed(System.currentTimeMillis() - startedAt)}  ·  $done/${rows.size} séries")
     }
 
-    private fun exerciseCard(e: Exercise) = card().apply {
-        addView(text(e.name, 18f, Palette.DEEP, bold = true))
-        addView(
-            text("Meta: ${Fmt.target(e)} · descanso ${Fmt.duration(e.restSeconds)}", 13f, Palette.OCEAN),
-            lp().margins(t = dp(2))
+    private fun saveDraft() {
+        RunDraft.save(
+            this,
+            RunDraft(
+                workoutId = workout.id,
+                workoutName = workout.name,
+                startedAt = startedAt,
+                sets = rows.map {
+                    RunDraft.SetState(it.exercise.id, it.number, it.amount.text.toString(), it.weight.text.toString(), it.check.isChecked)
+                }
+            )
         )
+    }
+
+    private fun exerciseCard(e: Exercise, draft: RunDraft?) = card().apply {
+        addView(text(e.name, 18f, Palette.DEEP, bold = true))
+        addView(text("Meta: ${Fmt.target(e)}", 13f, Palette.OCEAN), lp().margins(t = dp(2)))
         if (e.notes.isNotBlank()) addView(text("📝 ${e.notes}", 13f, Palette.MUTED), lp().margins(t = dp(2)))
 
         val unit = if (e.mode == ExerciseMode.REPS) "reps" else "seg"
@@ -112,26 +128,31 @@ class WorkoutRunActivity : OceanActivity() {
             addView(text("Feito", 12f, Palette.MUTED, bold = true).apply { gravity = Gravity.CENTER }, lp(dp(52)))
         }, lp().margins(t = dp(12), l = dp(8), r = dp(4)))
 
-        for (n in 1..e.sets) addView(setRow(e, n))
+        for (n in 1..e.sets) addView(setRow(e, n, draft?.find(e.id, n)))
     }
 
-    private fun setRow(e: Exercise, n: Int): LinearLayout {
+    private fun setRow(e: Exercise, n: Int, saved: RunDraft.SetState?): LinearLayout {
+        val done = saved?.done == true
         val row = horizontal().apply {
             setPadding(dp(8), dp(4), dp(4), dp(4))
-            background = rounded(0x00000000, dpf(14f))
+            background = rounded(if (done) Palette.DONE_BG else 0x00000000, dpf(14f))
             layoutParams = lp().margins(t = dp(6))
         }
         val amountValue = if (e.mode == ExerciseMode.REPS) e.reps else e.seconds
-        val amount = input("", amountValue.toString(), INPUT_INT).apply { gravity = Gravity.CENTER }
-        val weight = input("0", if (e.weightKg != 0.0) Fmt.num(e.weightKg) else "", INPUT_DECIMAL_SIGNED)
+        val amount = input("", saved?.amount ?: amountValue.toString(), INPUT_INT).apply { gravity = Gravity.CENTER }
+        val weight = input("0", saved?.weight ?: if (e.weightKg != 0.0) Fmt.num(e.weightKg) else "", INPUT_DECIMAL_SIGNED)
             .apply { gravity = Gravity.CENTER }
+        amount.addTextChangedListener(onEdit)
+        weight.addTextChangedListener(onEdit)
         val check = CheckBox(this).apply {
             buttonTintList = ColorStateList.valueOf(Palette.TURQUOISE)
             scaleX = 1.3f
             scaleY = 1.3f
+            isChecked = done
             setOnCheckedChangeListener { _, checked ->
                 row.background = rounded(if (checked) Palette.DONE_BG else 0x00000000, dpf(14f))
                 updateHeader()
+                saveDraft()
             }
         }
         row.addView(text("$n", 16f, Palette.DEEP, bold = true), lp(dp(56)))
@@ -143,6 +164,12 @@ class WorkoutRunActivity : OceanActivity() {
         }, lp(dp(52)))
         rows += SetRow(e, n, row, amount, weight, check)
         return row
+    }
+
+    private val onEdit = object : TextWatcher {
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        override fun afterTextChanged(s: Editable?) = saveDraft()
     }
 
     private fun finishWorkout() {
@@ -177,6 +204,7 @@ class WorkoutRunActivity : OceanActivity() {
             ),
             sets
         )
+        RunDraft.clear(this)
         Toast.makeText(this, "Treino salvo no histórico 🌊", Toast.LENGTH_LONG).show()
         finish()
     }
@@ -188,10 +216,9 @@ class WorkoutRunActivity : OceanActivity() {
             super.onBackPressed()
             return
         }
-        confirm("Sair do treino?", "As séries marcadas não serão salvas.", "Sair") { finish() }
-    }
-
-    companion object {
-        private const val KEY_STARTED = "started_at"
+        confirm("Sair do treino?", "As séries marcadas não serão salvas.", "Sair") {
+            RunDraft.clear(this)
+            finish()
+        }
     }
 }

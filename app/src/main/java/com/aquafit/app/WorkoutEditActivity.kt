@@ -116,7 +116,6 @@ class WorkoutEditActivity : OceanActivity() {
             val info = vertical().apply {
                 addView(text(e.name, 17f, Palette.DEEP, bold = true))
                 addView(text(Fmt.target(e), 14f, Palette.OCEAN), lp().margins(t = dp(2)))
-                addView(text("Descanso: ${Fmt.duration(e.restSeconds)}", 13f, Palette.MUTED), lp().margins(t = dp(2)))
             }
             addView(info, lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }

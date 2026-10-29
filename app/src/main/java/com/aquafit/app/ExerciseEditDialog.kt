@@ -37,7 +37,6 @@ fun Activity.showExerciseDialog(workoutId: Long, existing: Exercise?, onSaved: (
     val reps = input("10", if (existing != null) e.reps.toString() else "", INPUT_INT)
     val seconds = input("30", if (existing != null) e.seconds.toString() else "", INPUT_INT)
     val weight = input("0 = peso corporal", if (e.weightKg != 0.0) Fmt.num(e.weightKg) else "", INPUT_DECIMAL_SIGNED)
-    val rest = input("60", if (existing != null) e.restSeconds.toString() else "", INPUT_INT)
     val notes = input("Opcional (pegada, progressão…)", e.notes, INPUT_MULTILINE)
 
     val repsField = field("Repetições por série", reps)
@@ -75,7 +74,6 @@ fun Activity.showExerciseDialog(workoutId: Long, existing: Exercise?, onSaved: (
         addView(repsField)
         addView(secondsField)
         addView(field("Carga (kg) — negativo = assistência (elástico)", weight))
-        addView(field("Descanso entre séries (segundos)", rest))
         addView(field("Observações", notes))
     }
     applyMode()
@@ -113,7 +111,6 @@ fun Activity.showExerciseDialog(workoutId: Long, existing: Exercise?, onSaved: (
                     reps = Fmt.parseInt(reps.text.toString()) ?: 10,
                     seconds = Fmt.parseInt(seconds.text.toString()) ?: 30,
                     weightKg = w,
-                    restSeconds = Fmt.parseInt(rest.text.toString()) ?: 60,
                     notes = notes.text.toString().trim()
                 )
             )

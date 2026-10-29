@@ -1,9 +1,11 @@
 package com.aquafit.app
 
+import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.view.ViewGroup
 import com.aquafit.app.data.Repository
+import com.aquafit.app.data.RunDraft
 import com.aquafit.app.data.Workout
 import com.aquafit.app.ui.CardList
 import com.aquafit.app.ui.Fmt
@@ -27,6 +29,7 @@ import com.aquafit.app.ui.vertical
 class MainActivity : OceanActivity() {
 
     private val repo by lazy { Repository.get(this) }
+    private var resumeDialog: AlertDialog? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,6 +42,26 @@ class MainActivity : OceanActivity() {
     override fun onResume() {
         super.onResume()
         render()
+        offerResume()
+    }
+
+    /** Se o app foi fechado no meio de um treino, oferece continuar de onde parou. */
+    private fun offerResume() {
+        if (resumeDialog?.isShowing == true) return
+        val draft = RunDraft.load(this) ?: return
+        if (repo.workout(draft.workoutId) == null) {
+            RunDraft.clear(this)
+            return
+        }
+        resumeDialog = dialogBuilder()
+            .setTitle("Treino em andamento 🏄")
+            .setMessage("Você tem um treino em andamento: ${draft.workoutName}. Continuar?")
+            .setCancelable(false)
+            .setPositiveButton("Continuar") { _, _ ->
+                startActivity(Intent(this, WorkoutRunActivity::class.java).putExtra(EXTRA_WORKOUT_ID, draft.workoutId))
+            }
+            .setNegativeButton("Descartar") { _, _ -> RunDraft.clear(this) }
+            .show()
     }
 
     private fun render() {
@@ -120,7 +143,7 @@ class MainActivity : OceanActivity() {
             .setNegativeButton("Cancelar", null)
             .create()
         dialog.setOnShowListener {
-            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val n = name.text.toString().trim()
                 if (n.isEmpty()) {
                     name.error = "Informe um nome"
