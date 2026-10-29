@@ -10,12 +10,21 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import kotlin.math.abs
 
-/** Ação revelada ao deslizar um card para o lado. [onTrigger] recebe `reset`, que devolve o card ao lugar. */
-class SwipeAction(val icon: String, val color: Int, val onTrigger: (reset: () -> Unit) -> Unit)
+/**
+ * Ação revelada ao deslizar um card para o lado, com um ícone vetorial ([iconRes]) ou um caractere ([icon]).
+ * [onTrigger] recebe `reset`, que devolve o card ao lugar.
+ */
+class SwipeAction(
+    val color: Int,
+    val icon: String = "",
+    val iconRes: Int = 0,
+    val onTrigger: (reset: () -> Unit) -> Unit
+)
 
 /**
  * Gestos dos cards de uma lista dentro de um ScrollView:
@@ -89,7 +98,7 @@ class CardList(
         listOfNotNull(behindLeft, behindRight).forEach { row.addView(it, FrameLayout.LayoutParams(-1, -1)) }
         row.addView(card, FrameLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT))
 
-        card.foreground = RippleDrawable(ColorStateList.valueOf(0x2200B4D8), null, rounded(Palette.WHITE, ctx.dpf(20f)))
+        card.foreground = RippleDrawable(ColorStateList.valueOf(0x2200B4D8), null, rounded(Palette.WHITE, ctx.dpf(CARD_RADIUS)))
         card.setOnClickListener { onTap() }
         card.setOnTouchListener { v, ev ->
             when (ev.actionMasked) {
@@ -156,11 +165,17 @@ class CardList(
     }
 
     private fun behind(action: SwipeAction, side: Int) = FrameLayout(ctx).apply {
-        background = rounded(action.color, ctx.dpf(20f))
+        background = rounded(action.color, ctx.dpf(CARD_RADIUS))
         visibility = View.INVISIBLE
+        val icon = if (action.iconRes != 0) {
+            ImageView(ctx).apply { setImageResource(action.iconRes) }
+        } else {
+            ctx.text(action.icon, 24f, Palette.WHITE, bold = true)
+        }
+        val size = if (action.iconRes != 0) ctx.dp(28) else -2
         addView(
-            ctx.text(action.icon, 24f, Palette.WHITE, bold = true),
-            FrameLayout.LayoutParams(-2, -2, side or Gravity.CENTER_VERTICAL).apply {
+            icon,
+            FrameLayout.LayoutParams(size, size, side or Gravity.CENTER_VERTICAL).apply {
                 marginStart = ctx.dp(24)
                 marginEnd = ctx.dp(24)
             }

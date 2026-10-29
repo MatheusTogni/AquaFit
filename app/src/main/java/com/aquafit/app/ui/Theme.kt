@@ -1,5 +1,8 @@
 package com.aquafit.app.ui
 
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.animation.StateListAnimator
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
@@ -11,15 +14,19 @@ import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
+import android.graphics.drawable.StateListDrawable
+import android.os.Build
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import com.aquafit.app.R
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -33,13 +40,31 @@ object Palette {
     val SAND = 0xFFFFF3E0.toInt()
     val SAND_DARK = 0xFFFFE0B2.toInt()
     val CORAL = 0xFFFF8C42.toInt()
+    val CORAL_DEEP = 0xFFFF6B57.toInt()
     val SUN = 0xFFFFD166.toInt()
     val WHITE = 0xFFFFFFFF.toInt()
     val TEXT = 0xFF023E8A.toInt()
     val MUTED = 0xFF5C7C99.toInt()
     val DONE_BG = 0xFFDFF7F1.toInt()
     val DANGER = 0xFFE5534B.toInt()
+    val INPUT_BG = 0xFFF2FAFC.toInt()
 }
+
+/** Pesos da Nunito, a fonte do app (arquivos em res/font). */
+enum class Weight(val res: Int) {
+    MEDIUM(R.font.nunito_medium),
+    SEMIBOLD(R.font.nunito_semibold),
+    BOLD(R.font.nunito_bold),
+    EXTRABOLD(R.font.nunito_extrabold),
+    BLACK(R.font.nunito_black)
+}
+
+private val fonts = HashMap<Weight, Typeface>()
+
+fun Context.font(weight: Weight): Typeface = fonts.getOrPut(weight) { resources.getFont(weight.res) }
+
+/** Raio dos cards; o fundo das ações de deslizar usa o mesmo. */
+const val CARD_RADIUS = 24f
 
 const val INPUT_TEXT = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
 const val INPUT_MULTILINE = INPUT_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
@@ -60,6 +85,24 @@ fun rounded(color: Int, radius: Float, strokeColor: Int? = null, strokeWidth: In
 fun ripple(base: Drawable, rippleColor: Int = 0x33FFFFFF) =
     RippleDrawable(ColorStateList.valueOf(rippleColor), base, null)
 
+fun gradient(radius: Float, vararg colors: Int) =
+    GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, colors).apply { cornerRadius = radius }
+
+/** Encolhe um pouco a view enquanto ela está pressionada. */
+fun pressScale(): StateListAnimator {
+    fun scaleTo(v: Float) = AnimatorSet().apply {
+        playTogether(
+            ObjectAnimator.ofFloat<View>(null, View.SCALE_X, v),
+            ObjectAnimator.ofFloat<View>(null, View.SCALE_Y, v)
+        )
+        duration = 90
+    }
+    return StateListAnimator().apply {
+        addState(intArrayOf(android.R.attr.state_pressed), scaleTo(0.96f))
+        addState(intArrayOf(), scaleTo(1f))
+    }
+}
+
 fun lp(
     width: Int = ViewGroup.LayoutParams.MATCH_PARENT,
     height: Int = ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -78,7 +121,7 @@ fun Context.text(
     text = value
     textSize = size
     setTextColor(color)
-    if (bold) typeface = Typeface.DEFAULT_BOLD
+    typeface = font(if (bold) Weight.EXTRABOLD else Weight.MEDIUM)
 }
 
 fun Context.vertical(padding: Int = 0) = LinearLayout(this).apply {
@@ -91,11 +134,15 @@ fun Context.horizontal() = LinearLayout(this).apply {
     gravity = Gravity.CENTER_VERTICAL
 }
 
-/** Card branco arredondado, como uma prancha flutuando no mar. */
-fun Context.card(): LinearLayout = vertical(dp(16)).apply {
-    background = rounded(Palette.WHITE, dpf(20f), 0x2290E0EF, dp(1))
-    elevation = dpf(3f)
-    layoutParams = lp().margins(t = dp(6), b = dp(6))
+/** Card branco arredondado, como uma prancha flutuando no mar, com sombra azulada. */
+fun Context.card(): LinearLayout = vertical(dp(18)).apply {
+    background = rounded(Palette.WHITE, dpf(CARD_RADIUS))
+    elevation = dpf(5f)
+    if (Build.VERSION.SDK_INT >= 28) {
+        outlineSpotShadowColor = Palette.OCEAN
+        outlineAmbientShadowColor = Palette.TURQUOISE
+    }
+    layoutParams = lp().margins(t = dp(7), b = dp(7))
 }
 
 enum class BtnStyle { PRIMARY, SECONDARY, OUTLINE, DANGER, GHOST }
@@ -103,20 +150,21 @@ enum class BtnStyle { PRIMARY, SECONDARY, OUTLINE, DANGER, GHOST }
 fun Context.button(label: String, style: BtnStyle = BtnStyle.PRIMARY, onClick: () -> Unit): TextView =
     TextView(this).apply {
         text = label
-        textSize = 15f
-        typeface = Typeface.DEFAULT_BOLD
+        textSize = 16f
+        typeface = font(Weight.EXTRABOLD)
         gravity = Gravity.CENTER
-        setPadding(dp(16), dp(11), dp(16), dp(11))
-        val radius = dpf(24f)
+        setPadding(dp(18), dp(13), dp(18), dp(13))
+        val radius = dpf(26f)
         val (bg, fg, rip) = when (style) {
-            BtnStyle.PRIMARY -> Triple(rounded(Palette.CORAL, radius), Palette.WHITE, 0x44FFFFFF)
-            BtnStyle.SECONDARY -> Triple(rounded(Palette.TURQUOISE, radius), Palette.WHITE, 0x44FFFFFF)
-            BtnStyle.OUTLINE -> Triple(rounded(Palette.WHITE, radius, Palette.TURQUOISE, dp(2)), Palette.OCEAN, 0x3300B4D8)
+            BtnStyle.PRIMARY -> Triple(gradient(radius, Palette.CORAL, Palette.CORAL_DEEP), Palette.WHITE, 0x44FFFFFF)
+            BtnStyle.SECONDARY -> Triple(gradient(radius, Palette.TURQUOISE, Palette.OCEAN), Palette.WHITE, 0x44FFFFFF)
+            BtnStyle.OUTLINE -> Triple(rounded(Palette.WHITE, radius, Palette.FOAM, dp(2)), Palette.OCEAN, 0x3300B4D8)
             BtnStyle.DANGER -> Triple(rounded(Palette.WHITE, radius, Palette.DANGER, dp(2)), Palette.DANGER, 0x33E5534B)
             BtnStyle.GHOST -> Triple(rounded(0x00000000, radius), Palette.OCEAN, 0x3300B4D8)
         }
         background = ripple(bg, rip)
         setTextColor(fg)
+        stateListAnimator = pressScale()
         isClickable = true
         setOnClickListener { onClick() }
     }
@@ -127,15 +175,20 @@ fun Context.input(hint: String, value: String = "", type: Int = INPUT_TEXT): Edi
         setText(value)
         inputType = type
         textSize = 16f
+        typeface = font(Weight.SEMIBOLD)
         setTextColor(Palette.TEXT)
-        setHintTextColor(Palette.MUTED)
-        background = rounded(Palette.WHITE, dpf(12f), Palette.FOAM, dp(2))
-        setPadding(dp(14), dp(10), dp(14), dp(10))
+        setHintTextColor(0x995C7C99.toInt())
+        // Campo claro que ganha borda turquesa ao receber o foco.
+        background = StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_focused), rounded(Palette.WHITE, dpf(14f), Palette.TURQUOISE, dp(2)))
+            addState(intArrayOf(), rounded(Palette.INPUT_BG, dpf(14f), Palette.SKY, dp(2)))
+        }
+        setPadding(dp(14), dp(12), dp(14), dp(12))
     }
 
 /** Rótulo pequeno acima de um campo. */
 fun Context.field(label: String, view: View): LinearLayout = vertical().apply {
-    addView(text(label, 12f, Palette.MUTED, bold = true), lp().margins(b = dp(4)))
+    addView(text(label, 12f, Palette.MUTED, bold = true).apply { letterSpacing = 0.03f }, lp().margins(b = dp(5), l = dp(2)))
     addView(view, lp())
     layoutParams = lp().margins(t = dp(10))
 }
@@ -143,12 +196,12 @@ fun Context.field(label: String, view: View): LinearLayout = vertical().apply {
 /** Etiqueta arredondada (ex.: "3 exercícios"). */
 fun Context.badge(label: String, bg: Int = Palette.SKY, fg: Int = Palette.OCEAN): TextView =
     text(label, 12f, fg, bold = true).apply {
-        background = rounded(bg, dpf(12f))
-        setPadding(dp(10), dp(4), dp(10), dp(4))
+        background = rounded(bg, dpf(14f))
+        setPadding(dp(11), dp(5), dp(11), dp(5))
     }
 
 fun Context.dialogBuilder(): AlertDialog.Builder =
-    AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
+    AlertDialog.Builder(this, R.style.AppDialog)
 
 fun Context.confirm(title: String, message: String, okLabel: String, onDismiss: () -> Unit = {}, onOk: () -> Unit) {
     dialogBuilder()
@@ -226,6 +279,7 @@ abstract class OceanActivity : Activity() {
             setPadding(dp(12), dp(14), dp(12), dp(4))
         }
         val row = horizontal()
+        if (!showBack) row.addView(logo(), lp(dp(46), dp(46)).margins(l = dp(4), r = dp(12)))
         if (showBack) {
             row.addView(
                 text("←", 24f, Palette.WHITE, bold = true).apply {
@@ -236,15 +290,16 @@ abstract class OceanActivity : Activity() {
             )
         }
         val titles = vertical()
-        titleView = text(title, 22f, Palette.WHITE, bold = true)
-        subtitleView = text(subtitle.orEmpty(), 13f, 0xDDFFFFFF.toInt()).apply {
+        titleView = text(title, 24f, Palette.WHITE).apply { typeface = font(Weight.BLACK) }
+        subtitleView = text(subtitle.orEmpty(), 13f, 0xE6FFFFFF.toInt()).apply {
+            typeface = font(Weight.SEMIBOLD)
             visibility = if (subtitle.isNullOrEmpty()) View.GONE else View.VISIBLE
         }
         noteView = text("", 11f, 0xAAFFFFFF.toInt()).apply { visibility = View.GONE }
         titles.addView(titleView)
         titles.addView(subtitleView)
         titles.addView(noteView)
-        row.addView(titles, lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).margins(l = if (showBack) 0 else dp(6)))
+        row.addView(titles, lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         actionsBox = horizontal()
         row.addView(actionsBox)
         header.addView(row)
@@ -257,9 +312,14 @@ abstract class OceanActivity : Activity() {
         column.addView(scroll, lp(height = 0, weight = 1f))
 
         bottomBar = horizontal().apply {
-            setPadding(dp(12), dp(10), dp(12), dp(12))
-            background = rounded(Palette.WHITE, dpf(0f))
-            elevation = dpf(8f)
+            setPadding(dp(12), dp(12), dp(12), dp(14))
+            background = GradientDrawable().apply {
+                setColor(Palette.WHITE)
+                val r = dpf(24f)
+                cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
+            }
+            elevation = dpf(12f)
+            if (Build.VERSION.SDK_INT >= 28) outlineSpotShadowColor = Palette.OCEAN
             visibility = View.GONE
         }
         column.addView(bottomBar)
@@ -280,11 +340,43 @@ abstract class OceanActivity : Activity() {
         noteView.visibility = if (note.isEmpty()) View.GONE else View.VISIBLE
     }
 
+    /** Logo do app num círculo, mostrado no cabeçalho da tela inicial. */
+    private fun logo() = FrameLayout(this).apply {
+        background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Palette.WHITE)
+        }
+        clipToOutline = true
+        elevation = dpf(3f)
+        addView(ImageView(this@OceanActivity).apply {
+            setImageResource(R.mipmap.ic_launcher_foreground)
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            // O desenho ocupa 74 dos 108dp do ícone adaptativo; amplia para preencher o círculo.
+            scaleX = 1.46f
+            scaleY = 1.46f
+        }, FrameLayout.LayoutParams(-1, -1))
+    }
+
+    protected fun addHeaderIcon(iconRes: Int, description: String, onClick: () -> Unit) {
+        actionsBox.addView(
+            ImageView(this).apply {
+                setImageResource(iconRes)
+                contentDescription = description
+                scaleType = ImageView.ScaleType.CENTER
+                background = ripple(rounded(0x33FFFFFF, dpf(18f)))
+                stateListAnimator = pressScale()
+                setOnClickListener { onClick() }
+            },
+            lp(dp(40), dp(36)).margins(l = dp(6))
+        )
+    }
+
     protected fun addHeaderAction(label: String, onClick: () -> Unit) {
         actionsBox.addView(
             text(label, 14f, Palette.WHITE, bold = true).apply {
                 setPadding(dp(12), dp(7), dp(12), dp(7))
                 background = ripple(rounded(0x33FFFFFF, dpf(18f)))
+                stateListAnimator = pressScale()
                 setOnClickListener { onClick() }
             },
             lp(ViewGroup.LayoutParams.WRAP_CONTENT).margins(l = dp(6))
@@ -301,13 +393,16 @@ abstract class OceanActivity : Activity() {
 
     protected fun addFab(label: String, onClick: () -> Unit) {
         val size = dp(62)
-        val fab = text(label, 30f, Palette.WHITE, bold = true).apply {
+        val fab = text(label, 32f, Palette.WHITE).apply {
+            typeface = font(Weight.BLACK)
             gravity = Gravity.CENTER
-            background = ripple(GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Palette.CORAL)
-            })
+            background = ripple(GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Palette.CORAL, Palette.CORAL_DEEP)
+            ).apply { shape = GradientDrawable.OVAL })
             elevation = dpf(8f)
+            if (Build.VERSION.SDK_INT >= 28) outlineSpotShadowColor = Palette.CORAL_DEEP
+            stateListAnimator = pressScale()
             setOnClickListener { onClick() }
         }
         frame.addView(fab, FrameLayout.LayoutParams(size, size, Gravity.BOTTOM or Gravity.END).apply {
@@ -325,10 +420,14 @@ abstract class OceanActivity : Activity() {
         }, lp().margins(t = dp(40)))
     }
 
+    /** Título de seção com um traço turquesa à esquerda. */
     protected fun sectionTitle(label: String) {
-        content.addView(text(label, 13f, Palette.OCEAN, bold = true).apply {
-            letterSpacing = 0.08f
-        }, lp().margins(t = dp(14), b = dp(2), l = dp(4)))
+        content.addView(horizontal().apply {
+            addView(View(context).apply { background = rounded(Palette.TURQUOISE, dpf(2f)) }, lp(dp(4), dp(14)))
+            addView(text(label, 13f, Palette.OCEAN, bold = true).apply {
+                letterSpacing = 0.1f
+            }, lp(ViewGroup.LayoutParams.WRAP_CONTENT).margins(l = dp(8)))
+        }, lp().margins(t = dp(16), b = dp(4), l = dp(4)))
     }
 
     /** Dica curta abaixo do título da seção (ex.: como usar os gestos). */

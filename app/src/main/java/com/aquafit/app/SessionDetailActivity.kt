@@ -31,7 +31,7 @@ class SessionDetailActivity : OceanActivity() {
             return
         }
         setupScreen(session.workoutName, Fmt.dateTime(session.startedAt))
-        addHeaderAction("🗑") {
+        addHeaderIcon(R.drawable.ic_trash, "Excluir registro") {
             confirm("Excluir registro", "Excluir este treino do histórico?", "Excluir") {
                 repo.deleteSession(id)
                 finish()

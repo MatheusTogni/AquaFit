@@ -58,7 +58,7 @@ class MainActivity : OceanActivity() {
                     list.add(
                         workoutCard(w),
                         onTap = { openEditor(w.id) },
-                        swipeLeft = SwipeAction("🗑", Palette.DANGER) { reset -> confirmDelete(w, reset) }
+                        swipeLeft = SwipeAction(Palette.DANGER, iconRes = R.drawable.ic_trash) { reset -> confirmDelete(w, reset) }
                     )
                 )
             }

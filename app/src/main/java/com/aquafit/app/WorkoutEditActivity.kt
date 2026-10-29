@@ -49,7 +49,7 @@ class WorkoutEditActivity : OceanActivity() {
         workout = w
         setupScreen(w.name, "Editar treino")
         addHeaderAction("✎") { promptRename() }
-        addHeaderAction("🗑") {
+        addHeaderIcon(R.drawable.ic_trash, "Excluir treino") {
             confirm("Excluir treino", "Excluir \"${workout.name}\"? O histórico continua salvo.", "Excluir") {
                 repo.deleteWorkout(workoutId)
                 finish()
@@ -91,13 +91,13 @@ class WorkoutEditActivity : OceanActivity() {
                 list.add(
                     exerciseCard(index, e),
                     onTap = { editExercise(e) },
-                    swipeLeft = SwipeAction("🗑", Palette.DANGER) { reset ->
+                    swipeLeft = SwipeAction(Palette.DANGER, iconRes = R.drawable.ic_trash) { reset ->
                         confirm("Remover exercício", "Remover \"${e.name}\" deste treino?", "Remover", onDismiss = reset) {
                             repo.deleteExercise(e.id)
                             render()
                         }
                     },
-                    swipeRight = SwipeAction("✎", Palette.TURQUOISE) { reset ->
+                    swipeRight = SwipeAction(Palette.TURQUOISE, icon = "✎") { reset ->
                         reset()
                         editExercise(e)
                     }
