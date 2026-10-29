@@ -80,8 +80,6 @@ class WorkoutEditActivity : OceanActivity() {
             emptyState("🐠", "Nenhum exercício ainda", "Toque em \"+ Exercício\" para adicionar flexões, barras, dips…")
             return
         }
-        sectionTitle("EXERCÍCIOS (${exercises.size})")
-        hint("Toque ou deslize → para editar · deslize ← para excluir · segure e arraste para reordenar")
         val list = CardList(scroll) { from, to ->
             repo.reorderExercises(exercises.toMutableList().apply { add(to, removeAt(from)) })
             render()

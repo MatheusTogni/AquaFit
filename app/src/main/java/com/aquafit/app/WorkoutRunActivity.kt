@@ -21,14 +21,12 @@ import com.aquafit.app.ui.BtnStyle
 import com.aquafit.app.ui.Fmt
 import com.aquafit.app.ui.INPUT_DECIMAL_SIGNED
 import com.aquafit.app.ui.INPUT_INT
-import com.aquafit.app.ui.INPUT_MULTILINE
 import com.aquafit.app.ui.OceanActivity
 import com.aquafit.app.ui.Palette
 import com.aquafit.app.ui.card
 import com.aquafit.app.ui.confirm
 import com.aquafit.app.ui.dp
 import com.aquafit.app.ui.dpf
-import com.aquafit.app.ui.field
 import com.aquafit.app.ui.horizontal
 import com.aquafit.app.ui.input
 import com.aquafit.app.ui.lp
@@ -51,7 +49,6 @@ class WorkoutRunActivity : OceanActivity() {
     private val repo by lazy { Repository.get(this) }
     private lateinit var workout: Workout
     private val rows = mutableListOf<SetRow>()
-    private lateinit var notes: EditText
     private var startedAt = 0L
     private val handler = Handler(Looper.getMainLooper())
     private val ticker = object : Runnable {
@@ -74,8 +71,6 @@ class WorkoutRunActivity : OceanActivity() {
 
         setupScreen("🏄 ${w.name}", "")
         exercises.forEach { content.addView(exerciseCard(it)) }
-        notes = input("Como foi o treino? (opcional)", type = INPUT_MULTILINE)
-        content.addView(card().apply { addView(field("Anotações da sessão", notes).apply { layoutParams = lp() }) })
 
         addBottomButton("Cancelar", BtnStyle.OUTLINE) { onBackPressed() }
         addBottomButton("🏁 Finalizar", BtnStyle.PRIMARY) { finishWorkout() }
@@ -178,8 +173,7 @@ class WorkoutRunActivity : OceanActivity() {
                 workoutId = workout.id,
                 workoutName = workout.name,
                 startedAt = startedAt,
-                finishedAt = System.currentTimeMillis(),
-                notes = notes.text.toString().trim()
+                finishedAt = System.currentTimeMillis()
             ),
             sets
         )
