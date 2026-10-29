@@ -8,6 +8,7 @@ import android.widget.Toast
 import com.aquafit.app.data.Repository
 import com.aquafit.app.data.Workout
 import com.aquafit.app.ui.BtnStyle
+import com.aquafit.app.ui.DragReorder
 import com.aquafit.app.ui.Fmt
 import com.aquafit.app.ui.INPUT_MULTILINE
 import com.aquafit.app.ui.OceanActivity
@@ -49,7 +50,11 @@ class MainActivity : OceanActivity() {
             emptyState("🏝️", "Mar calmo por aqui…", "Toque no + para criar seu primeiro treino.")
         } else {
             sectionTitle("MEUS TREINOS")
-            workouts.forEach { content.addView(workoutCard(it)) }
+            val drag = DragReorder(scroll) { from, to ->
+                repo.reorderWorkouts(workouts.toMutableList().apply { add(to, removeAt(from)) })
+                render()
+            }
+            workouts.forEach { content.addView(workoutCard(it, drag)) }
         }
         content.addView(
             text("v${appVersion()}", 11f, 0x885C7C99).apply { gravity = Gravity.CENTER },
@@ -65,8 +70,14 @@ class MainActivity : OceanActivity() {
             ""
         }
 
-    private fun workoutCard(w: Workout) = card().apply {
-        addView(text(w.name, 19f, Palette.DEEP, bold = true))
+    private fun workoutCard(w: Workout, drag: DragReorder) = card().apply {
+        val handle = drag.handle()
+        val titleRow = horizontal().apply {
+            addView(text(w.name, 19f, Palette.DEEP, bold = true), lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(handle, lp(dp(40), dp(36)).margins(l = dp(8)))
+        }
+        addView(titleRow)
+        drag.add(this, handle)
         if (w.description.isNotBlank()) {
             addView(text(w.description, 14f, Palette.MUTED), lp().margins(t = dp(2)))
         }

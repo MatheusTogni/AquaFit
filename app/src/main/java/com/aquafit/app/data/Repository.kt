@@ -26,7 +26,7 @@ class Repository private constructor(context: Context) {
             SELECT w.id, w.name, w.description, w.created_at,
                    (SELECT COUNT(*) FROM exercise e WHERE e.workout_id = w.id)
             FROM workout w
-            ORDER BY w.name COLLATE NOCASE
+            ORDER BY w.position, w.id
             """,
             null
         ).use { c ->
@@ -50,11 +50,15 @@ class Repository private constructor(context: Context) {
             put("name", w.name)
             put("description", w.description)
         }
+        val wdb = db.writableDatabase
         return if (w.id == 0L) {
+            val next = wdb.rawQuery("SELECT COALESCE(MAX(position), -1) + 1 FROM workout", null)
+                .use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
             values.put("created_at", w.createdAt)
-            db.writableDatabase.insertOrThrow("workout", null, values)
+            values.put("position", next)
+            wdb.insertOrThrow("workout", null, values)
         } else {
-            db.writableDatabase.update("workout", values, "id = ?", arrayOf(w.id.toString()))
+            wdb.update("workout", values, "id = ?", arrayOf(w.id.toString()))
             w.id
         }
     }
@@ -62,6 +66,9 @@ class Repository private constructor(context: Context) {
     fun deleteWorkout(id: Long) {
         db.writableDatabase.delete("workout", "id = ?", arrayOf(id.toString()))
     }
+
+    /** Regrava as posições dos treinos na ordem da lista recebida. */
+    fun reorderWorkouts(ordered: List<Workout>) = reorder("workout", ordered.map { it.id })
 
     // ---------- Exercícios ----------
 
@@ -121,13 +128,15 @@ class Repository private constructor(context: Context) {
     }
 
     /** Regrava as posições na ordem da lista recebida. */
-    fun reorderExercises(ordered: List<Exercise>) {
+    fun reorderExercises(ordered: List<Exercise>) = reorder("exercise", ordered.map { it.id })
+
+    private fun reorder(table: String, ids: List<Long>) {
         val wdb = db.writableDatabase
         wdb.beginTransaction()
         try {
-            ordered.forEachIndexed { index, e ->
+            ids.forEachIndexed { index, id ->
                 val v = ContentValues().apply { put("position", index) }
-                wdb.update("exercise", v, "id = ?", arrayOf(e.id.toString()))
+                wdb.update(table, v, "id = ?", arrayOf(id.toString()))
             }
             wdb.setTransactionSuccessful()
         } finally {

@@ -4,7 +4,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class Db(context: Context) : SQLiteOpenHelper(context, "aquafit.db", null, 1) {
+class Db(context: Context) : SQLiteOpenHelper(context, "aquafit.db", null, 2) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         db.setForeignKeyConstraintsEnabled(true)
@@ -17,7 +17,8 @@ class Db(context: Context) : SQLiteOpenHelper(context, "aquafit.db", null, 1) {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 description TEXT NOT NULL DEFAULT '',
-                created_at INTEGER NOT NULL
+                created_at INTEGER NOT NULL,
+                position INTEGER NOT NULL DEFAULT 0
             )
             """
         )
@@ -70,6 +71,18 @@ class Db(context: Context) : SQLiteOpenHelper(context, "aquafit.db", null, 1) {
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Versão 1: nada a migrar ainda.
+        if (oldVersion < 2) {
+            // Ordem manual dos treinos; começa igual à ordem alfabética que era usada antes.
+            db.execSQL("ALTER TABLE workout ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
+            db.execSQL(
+                """
+                UPDATE workout SET position = (
+                    SELECT COUNT(*) FROM workout w2
+                    WHERE w2.name < workout.name COLLATE NOCASE
+                       OR (w2.name = workout.name COLLATE NOCASE AND w2.id < workout.id)
+                )
+                """
+            )
+        }
     }
 }
