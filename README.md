@@ -2,7 +2,7 @@
 
 App Android para montar e registrar treinos de calistenia. Você monta seus treinos, executa marcando série por série e acompanha o histórico — tudo offline, salvo no próprio celular.
 
-[![Baixar APK](https://img.shields.io/github/v/release/MatheusTogni/AquaFit?label=baixar%20APK&logo=android&color=0aa)](https://github.com/MatheusTogni/AquaFit/releases/latest)
+[![Baixar APK](https://img.shields.io/badge/baixar-APK-00aaaa?logo=android&logoColor=white)](https://github.com/MatheusTogni/AquaFit/releases/latest)
 ![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3ddc84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7f52ff?logo=kotlin&logoColor=white)
 ![Sem dependências](https://img.shields.io/badge/depend%C3%AAncias-0-blue)
