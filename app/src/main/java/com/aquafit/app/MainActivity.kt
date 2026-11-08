@@ -70,8 +70,6 @@ class MainActivity : OceanActivity() {
         if (workouts.isEmpty()) {
             emptyState("🏝️", "Mar calmo por aqui…", "Toque no + para criar seu primeiro treino.")
         } else {
-            sectionTitle("MEUS TREINOS")
-            hint("Toque para abrir · segure e arraste para reordenar · deslize ← para excluir")
             val list = CardList(scroll) { from, to ->
                 repo.reorderWorkouts(workouts.toMutableList().apply { add(to, removeAt(from)) })
                 render()
