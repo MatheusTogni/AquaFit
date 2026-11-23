@@ -31,7 +31,8 @@ App Android para montar e registrar treinos de calistenia. Você monta seus trei
 - **Lista com arrastar e deslizar feita do zero** ([`CardList.kt`](app/src/main/java/com/aquafit/app/ui/CardList.kt)) tratando `MotionEvent` direto: reordenação animada, ações reveladas por swipe e auto-scroll.
 - **SQLite com `SQLiteOpenHelper`**, chaves estrangeiras com `ON DELETE CASCADE`, índices e migração de schema versionada.
 - **Recuperação de estado** do treino em andamento persistida em JSON, independente do ciclo de vida da Activity (sobrevive à morte do processo).
-- **CI/CD com GitHub Actions** — cada push na `main` compila e publica o APK em [Releases](https://github.com/MatheusTogni/AquaFit/releases/latest).
+- **CI/CD com GitHub Actions** — cada push na `main` compila e publica o APK em [Releases](https://github.com/MatheusTogni/AquaFit/releases/latest), numerando a versão pelo número da execução e publicando junto um `version.json`.
+- **Atualização dentro do app** ([`Updater.kt`](app/src/main/java/com/aquafit/app/update/Updater.kt)) — ao abrir, o app compara o `version.json` da release com a versão instalada e, se houver uma nova, mostra um card no topo da lista de treinos. O APK só é baixado quando o usuário toca em *Atualizar*, e a instalação usa o `PackageInstaller` do Android, sempre com a confirmação do sistema.
 
 ## Estrutura
 
@@ -44,12 +45,13 @@ app/src/main/java/com/aquafit/app/
 ├── HistoryActivity.kt         histórico de sessões
 ├── SessionDetailActivity.kt   detalhe de uma sessão
 ├── data/                      SQLite (Db, Repository), modelos e rascunho do treino
-└── ui/                        tema, componentes, formatação e a lista com gestos
+├── ui/                        tema, componentes, formatação e a lista com gestos
+└── update/                    verificação, download e instalação de versões novas
 ```
 
 ## Instalação
 
-Baixe o `AquaFit.apk` em **[Releases → latest](https://github.com/MatheusTogni/AquaFit/releases/latest)** pelo celular e instale (o Android pede para permitir apps de fontes desconhecidas). Versões novas instalam por cima sem perder os dados.
+Baixe o `AquaFit.apk` em **[Releases → latest](https://github.com/MatheusTogni/AquaFit/releases/latest)** pelo celular e instale (o Android pede para permitir apps de fontes desconhecidas). Depois disso não é preciso voltar ao GitHub: quando sai uma versão nova, um card no topo da tela inicial do app oferece a atualização, e basta tocar em **Atualizar** e confirmar a instalação. Na primeira vez, o Android pede para permitir que o Aqua Fit instale apps. Versões novas instalam por cima sem perder os dados.
 
 ## Compilando
 

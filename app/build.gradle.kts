@@ -11,8 +11,13 @@ android {
         applicationId = "com.aquafit.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.2.0"
+        val buildNumber = (project.findProperty("buildNumber") as String?)?.toIntOrNull()
+        versionCode = buildNumber ?: 3
+        versionName = if (buildNumber != null) "1.2.$buildNumber" else "1.2.0"
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     signingConfigs {
